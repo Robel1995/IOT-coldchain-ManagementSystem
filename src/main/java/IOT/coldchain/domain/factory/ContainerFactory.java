@@ -10,6 +10,6 @@ public class ContainerFactory {
             throw new IllegalArgumentException("Min temp must be less than max temp");
         }
 
-        return new Container(containerId, minTemp, maxTemp, ContainerStatus.SAFE);
+        return Container.reconstitute(containerId, minTemp, maxTemp, ContainerStatus.SAFE);
     }
 }

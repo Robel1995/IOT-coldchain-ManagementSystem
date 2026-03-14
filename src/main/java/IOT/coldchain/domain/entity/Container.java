@@ -8,7 +8,7 @@ public class Container {
     private double maxSafeTemperature;
     private ContainerStatus status;
 
-    public Container(String containerId, double minSafeTemperature, double maxSafeTemperature, ContainerStatus status) {
+    protected Container(String containerId, double minSafeTemperature, double maxSafeTemperature, ContainerStatus status) {
         this.containerId = containerId;
         this.minSafeTemperature = minSafeTemperature;
         this.maxSafeTemperature = maxSafeTemperature;
@@ -24,6 +24,12 @@ public class Container {
             this.status = ContainerStatus.SPOILED;
         }
     }
+
+    // static method for the Infrastructure layer to load DB data
+    public static Container reconstitute(String containerId, double minSafeTemperature, double maxSafeTemperature, ContainerStatus status) {
+        return new Container(containerId, minSafeTemperature, maxSafeTemperature, status);
+    }
+
 
     // Update Rule Can only update if SAFE, and min must be < max
     public void updateTemperatureRange(double newMinTemp, double newMaxTemp) {

@@ -50,6 +50,6 @@ public class ContainerRepositoryAdapter implements ContainerRepository {
     }
     // Map JPA Entity -> pure Domain Entity
     private Container toDomain(ContainerJpaEntity jpa) {
-        return new Container(jpa.containerId, jpa.minSafeTemperature, jpa.maxSafeTemperature, ContainerStatus.valueOf(jpa.status));
+        return  Container.reconstitute(jpa.containerId, jpa.minSafeTemperature, jpa.maxSafeTemperature, ContainerStatus.valueOf(jpa.status));
     }
 }

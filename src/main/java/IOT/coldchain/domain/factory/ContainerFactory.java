@@ -10,6 +10,7 @@ public class ContainerFactory {
             throw new IllegalArgumentException("Min temp must be less than max temp");
         }
 
-        return Container.reconstitute(containerId, minTemp, maxTemp, ContainerStatus.SAFE);
+        // Pass null for the lists since a brand new container is empty!
+        return Container.reconstitute(containerId, minTemp, maxTemp, ContainerStatus.SAFE, null, null);
     }
 }

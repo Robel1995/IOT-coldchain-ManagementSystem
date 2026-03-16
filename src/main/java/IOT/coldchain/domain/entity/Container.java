@@ -7,10 +7,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * AGGREGATE ROOT: Matches the 'Order' in the instructor's slide.
- * It enforces all business rules for itself and its Child Entities.
- */
+
 public class Container {
     private final String containerId; // Aggregate Identity
     private ContainerStatus status;
@@ -22,23 +19,22 @@ public class Container {
     private List<CargoItem> cargoItems;
     private List<SensorDevice> sensors;
 
-    // Protected Constructor: Forces use of Factory or Reconstitute
-    protected Container(String containerId, TemperatureThreshold threshold, ContainerStatus status) {
+     Container(String containerId, TemperatureThreshold threshold) {
         this.containerId = containerId;
         this.threshold = threshold;
-        this.status = status;
+        this.status = ContainerStatus.SAFE;
         this.cargoItems = new ArrayList<>();
         this.sensors = new ArrayList<>();
     }
 
-    // --- AGGREGATE ROOT BEHAVIORS (Business Rules) ---
+    // Business Rules
 
     // 1. The Aggregate Root acts as a Factory for its children
     public void addCargo(String serialNumber, String medicineName) {
         if (this.status == ContainerStatus.SPOILED) {
             throw new IllegalStateException("Business Rule Violation: Cannot load cargo into a SPOILED container.");
         }
-        // Container instantiates the child because CargoItem constructor is protected!
+
         CargoItem newCargo = new CargoItem(serialNumber, medicineName);
         this.cargoItems.add(newCargo);
     }
@@ -61,6 +57,10 @@ public class Container {
 
     // 2. Cascading Business Rules
     public void recordTemperature(double currentTemp) {
+        // Physics guard — sensor reading cannot be below absolute zero
+        if (currentTemp < -273.15) {
+            throw new IllegalArgumentException( "Physics Violation: (sensor reading)Temperature cannot be below absolute zero. Received: " + currentTemp + "°C");
+        }
         if (this.status == ContainerStatus.SPOILED) {
             return; // Once spoiled, always spoiled
         }
@@ -86,8 +86,10 @@ public class Container {
     }
 
     // 4. Deletion Rule
-    public boolean canBeDeleted() {
-        return this.status == ContainerStatus.SPOILED; // Can only delete ruined containers
+    public void assertCanBeDeleted() {
+         if (this.status != ContainerStatus.SPOILED) {
+             throw new IllegalStateException( "Business Rule Violation: Cannot delete a SAFE container.");
+         } // If SPOILED method returns normally, deletion is allowed
     }
 
     // --- ENCAPSULATED GETTERS ---
@@ -96,7 +98,7 @@ public class Container {
     public ContainerStatus getStatus() { return status; }
     public TemperatureThreshold getThreshold() { return threshold; }
 
-    // SENIOR ARCHITECT TRICK: Return unmodifiable lists to protect the Aggregate!
+    //  Return unmodifiable lists to protect the Aggregate!
     public List<CargoItem> getCargoItems() {
         return Collections.unmodifiableList(cargoItems);
     }
@@ -109,9 +111,10 @@ public class Container {
     // We update this so the DB can load the Container WITH its children
     public static Container reconstitute(String containerId, double minTemp, double maxTemp, ContainerStatus status, List<CargoItem> loadedCargo, List<SensorDevice> loadedSensors) {
         TemperatureThreshold loadedThreshold = new TemperatureThreshold(minTemp, maxTemp);
-        Container container = new Container(containerId, loadedThreshold, status);
+        Container container = new Container(containerId, loadedThreshold);
 
-        // Load the children from the DB bypasses the "spoiled" check of addCargo()
+        // Load the children from the DB
+        container.status = status;
         container.cargoItems = loadedCargo != null ? loadedCargo : new ArrayList<>();
         container.sensors = loadedSensors != null ? loadedSensors : new ArrayList<>();
 
@@ -119,61 +122,3 @@ public class Container {
     }
 }
 
-/*
-package IOT.coldchain.domain.entity;
-
-import IOT.coldchain.domain.enums.ContainerStatus;
-
-public class Container {
-    private String containerId;
-    private double minSafeTemperature;
-    private double maxSafeTemperature;
-    private ContainerStatus status;
-
-    protected Container(String containerId, double minSafeTemperature, double maxSafeTemperature, ContainerStatus status) {
-        this.containerId = containerId;
-        this.minSafeTemperature = minSafeTemperature;
-        this.maxSafeTemperature = maxSafeTemperature;
-        this.status = status;
-    }
-
-    // Core Business Logic
-    public void recordTemperature(double currentTemp) {
-        if (this.status == ContainerStatus.SPOILED) {
-            return; // Once spoiled, always spoiled
-        }
-        if (currentTemp < minSafeTemperature || currentTemp > maxSafeTemperature) {
-            this.status = ContainerStatus.SPOILED;
-        }
-    }
-
-    // static method for the Infrastructure layer to load DB data
-    public static Container reconstitute(String containerId, double minSafeTemperature, double maxSafeTemperature, ContainerStatus status) {
-        return new Container(containerId, minSafeTemperature, maxSafeTemperature, status);
-    }
-
-
-    // Update Rule Can only update if SAFE, and min must be < max
-    public void updateTemperatureRange(double newMinTemp, double newMaxTemp) {
-        if (this.status == ContainerStatus.SPOILED) {
-            throw new IllegalStateException("Business Rule Violation: Cannot update rules for a spoiled container.");
-        }
-        if (newMinTemp >= newMaxTemp) {
-            throw new IllegalArgumentException("Business Rule Violation: New minimum temperature must be strictly less than maximum.");
-        }
-        this.minSafeTemperature = newMinTemp;
-        this.maxSafeTemperature = newMaxTemp;
-    }
-
-    // Delete Rule  Can only be removed from the system if it's already spoiled
-    public boolean canBeDeleted() {
-        return this.status == ContainerStatus.SPOILED;
-    }
-
-    // Getters
-    public String getContainerId() { return containerId; }
-    public double getMinSafeTemperature() { return minSafeTemperature; }
-    public double getMaxSafeTemperature() { return maxSafeTemperature; }
-    public ContainerStatus getStatus() { return status; }
-}
-*/

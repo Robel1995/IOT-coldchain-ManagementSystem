@@ -1,10 +1,12 @@
 package IOT.coldchain.application.command;
 import IOT.coldchain.application.port.ContainerRepository;
 import IOT.coldchain.domain.entity.Container;
+import IOT.coldchain.application.port.in.DeleteContainerUseCase;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
-public class DeleteContainerHandler {
+public class DeleteContainerHandler implements DeleteContainerUseCase {
 
     private final ContainerRepository repository;
 
@@ -12,14 +14,14 @@ public class DeleteContainerHandler {
         this.repository=repository;
     }
 
+    @Transactional
+    @Override
     public void handle(DeleteContainerCommand cmd) {
         Container container = repository.findById(cmd.containerId)
                 .orElseThrow(() -> new RuntimeException("Container not found"));
 
-        // Enforce Domain Business Rule before deleting
-        if (!container.canBeDeleted()) {
-            throw new IllegalStateException("Business Rule Violation: Cannot delete a SAFE container.");
-        }
+
+        container.assertCanBeDeleted();
 
         repository.delete(cmd.containerId);
     }

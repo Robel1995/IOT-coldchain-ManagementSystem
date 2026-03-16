@@ -1,13 +1,15 @@
 package IOT.coldchain.infrastructure.adapter;
 
-
 import IOT.coldchain.application.port.ContainerRepository;
+import IOT.coldchain.domain.entity.CargoItem;
 import IOT.coldchain.domain.entity.Container;
+import IOT.coldchain.domain.entity.SensorDevice;
 import IOT.coldchain.domain.enums.ContainerStatus;
+import IOT.coldchain.infrastructure.persistence.CargoItemJpaEntity;
 import IOT.coldchain.infrastructure.persistence.ContainerJpaEntity;
+import IOT.coldchain.infrastructure.persistence.SensorDeviceJpaEntity;
 import IOT.coldchain.infrastructure.persistence.SpringDataJpaRepository;
 import org.springframework.stereotype.Component;
-
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -23,13 +25,29 @@ public class ContainerRepositoryAdapter implements ContainerRepository {
 
     @Override
     public void save(Container domainContainer) {
-        // Map pure Domain Entity -> JPA Entity
+        // 1. Map pure Domain Entity -> JPA Entity
         ContainerJpaEntity jpaEntity = new ContainerJpaEntity();
-        jpaEntity.containerId = domainContainer.getContainerId();
-        jpaEntity.minSafeTemperature = domainContainer.getMinSafeTemperature();
-        jpaEntity.maxSafeTemperature = domainContainer.getMaxSafeTemperature();
-        jpaEntity.status = domainContainer.getStatus().name();
+        jpaEntity.setContainerId(domainContainer.getContainerId());
+        jpaEntity.setStatus(domainContainer.getStatus().name());
+        // Extract from Value Object
+        jpaEntity.setMinSafeTemperature(domainContainer.getThreshold().getMinTemp());
+        jpaEntity.setMaxSafeTemperature(domainContainer.getThreshold().getMaxTemp());
 
+        // 2. Map Cargo Items
+        jpaEntity.setCargoItems(domainContainer.getCargoItems().stream().map(cargo -> {
+    CargoItemJpaEntity cJpa = new CargoItemJpaEntity();
+    cJpa.setSerialNumber(cargo.getSerialNumber());
+    cJpa.setMedicineName(cargo.getMedicineName());
+    cJpa.setRuined(cargo.isRuined()); return cJpa;
+    }).collect(Collectors.toList()));
+        // 3. Map Sensors
+        jpaEntity.setSensors(domainContainer.getSensors().stream().map(sensor -> {
+            SensorDeviceJpaEntity sJpa = new SensorDeviceJpaEntity();
+            sJpa.setMacAddress(sensor.getMacAddress());
+            sJpa.setLocation(sensor.getLocation()); return sJpa;
+            }).collect(Collectors.toList()));
+
+        // 4. Save entire Aggregate together
         jpaRepo.save(jpaEntity);
     }
 
@@ -45,11 +63,33 @@ public class ContainerRepositoryAdapter implements ContainerRepository {
     }
 
     @Override
-    public void delete(String containerId){
+    public void delete(String containerId) {
         jpaRepo.deleteById(containerId);
     }
-    // Map JPA Entity -> pure Domain Entity
+
+    // --- RECONSTITUTION MAPPER ---
     private Container toDomain(ContainerJpaEntity jpa) {
-        return  Container.reconstitute(jpa.containerId, jpa.minSafeTemperature, jpa.maxSafeTemperature, ContainerStatus.valueOf(jpa.status));
+        // 1. Rebuild Cargo Items by using getters
+        List<CargoItem> domainCargo = jpa.getCargoItems().stream()
+                // Because CargoItem constructor is protected, we must use reflection or
+                // temporarily make it package-private. But actually, we need a reconstitute method on CargoItem
+                .map(c -> CargoItem.reconstitute(c.getSerialNumber(), c.getMedicineName(), c.isRuined()))
+                .collect(Collectors.toList());
+
+        // 2. Rebuild Sensors
+        List<SensorDevice> domainSensors = jpa.getSensors().stream()
+                .map(s -> SensorDevice.reconstitute(s.getMacAddress(), s.getLocation()))
+                .collect(Collectors.toList());
+
+        // 3. Rebuild Aggregate Root
+        return Container.reconstitute(
+                jpa.getContainerId(),
+                jpa.getMinSafeTemperature(),
+                jpa.getMaxSafeTemperature(),
+                ContainerStatus.valueOf(jpa.getStatus()),
+                domainCargo,
+                domainSensors
+        );
     }
 }
+

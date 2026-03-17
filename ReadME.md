@@ -18,7 +18,7 @@ This project was built to demonstrate absolute mastery of Clean Architecture, Do
 * Group Members:
     * Robel Yitbarek
     * Zedingle Biniyam
-    * Kaleab Ashenafi
+    * Kaleab Tilahun
     * Nahom Alehegn
     * Eyosiyas Tewodros
     * Natnael Girma

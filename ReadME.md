@@ -65,7 +65,7 @@ These endpoints mutate the state of the system and enforce strict Domain busines
 | `POST` | `/api/containers/telemetry` | Records a new sensor reading. | If limits are violated, Root marks itself AND all Cargo as `SPOILED`. |
 | `POST` | `/api/containers/deliver` | Removes a box of vaccines for a hospital. | FATAL: Blocked if Container is `SPOILED` (Protects patient lives). |
 | `PUT` | `/api/containers/range` | Updates the safe temperature range. | Blocked if Container is already `SPOILED`. |
-| `DELETE` | `/api/containers/{id}` | Scraps/Deletes a container from DB. | Blocked if Container is `SAFE`. Only ruined trucks can be deleted. |
+| `DELETE` | `/api/containers/{id}` | Scraps/Deletes a refrigeratedTruck from DB. | Blocked if Container is `SAFE`. Only ruined trucks can be deleted. |
 
 ### Read Operations (Queries)
 These endpoints read data rapidly using DTO projections.
